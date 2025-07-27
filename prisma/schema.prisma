@@ -38,4 +38,6 @@ model Users {
   is_approved     Boolean @default(false)
   activation_link String?
   refreshToken    String?
+  otp_code        String?
+  otp_expires_at  DateTime?
 }
