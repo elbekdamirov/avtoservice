@@ -1,0 +1,41 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  WORKER
+  CLIENT
+  OWNER
+}
+
+model Admins {
+  id         Int     @id @default(autoincrement())
+  full_name  String  @db.VarChar(100)
+  phone      String  @unique @db.VarChar(15)
+  email      String  @unique @db.VarChar(50)
+  is_creator Boolean @default(false)
+}
+
+model Users {
+  id              Int     @id @default(autoincrement())
+  full_name       String  @db.VarChar(100)
+  phone           String  @unique @db.VarChar(15)
+  email           String  @unique @db.VarChar(50)
+  role            Role    @default(CLIENT)
+  is_active       Boolean @default(false)
+  is_approved     Boolean @default(false)
+  activation_link String?
+  refreshToken    String?
+}
