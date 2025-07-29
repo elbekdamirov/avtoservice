@@ -29,15 +29,53 @@ model Admins {
 }
 
 model Users {
-  id              Int     @id @default(autoincrement())
-  full_name       String  @db.VarChar(100)
-  phone           String  @unique @db.VarChar(15)
-  email           String  @unique @db.VarChar(50)
-  role            Role    @default(CLIENT)
-  is_active       Boolean @default(false)
-  is_approved     Boolean @default(false)
+  id              Int          @id @default(autoincrement())
+  full_name       String       @db.VarChar(100)
+  phone           String       @unique @db.VarChar(15)
+  email           String       @unique @db.VarChar(50)
+  role            Role         @default(CLIENT)
+  is_active       Boolean      @default(false)
+  is_approved     Boolean      @default(false)
   activation_link String?
   refreshToken    String?
   otp_code        String?
   otp_expires_at  DateTime?
+  cars            Car[]
+  car_histories   CarHistory[]
+}
+
+model Car {
+  id               Int          @id @default(autoincrement())
+  plate_number     String       @db.VarChar(30)
+  vin_number       String       @db.VarChar(30)
+  model            String       @db.VarChar(50)
+  year             String       @db.VarChar(4)
+  car_histories    CarHistory[]
+  Users            Users?       @relation(fields: [current_owner_id], references: [id])
+  current_owner_id Int?
+}
+
+model CarHistory {
+  id       Int       @id @default(autoincrement())
+  buyed_at DateTime
+  sold_at  DateTime?
+
+  Users   Users? @relation(fields: [ownerId], references: [id])
+  ownerId Int?
+  Car     Car?   @relation(fields: [carId], references: [id])
+  carId   Int?
+}
+
+model Regions {
+  id        Int        @id @default(autoincrement())
+  name      String
+  districts District[]
+}
+
+model District {
+  id   Int    @id @default(autoincrement())
+  name String
+
+  Regions   Regions? @relation(fields: [regionsId], references: [id])
+  regionsId Int?
 }

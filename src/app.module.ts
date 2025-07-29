@@ -5,6 +5,10 @@ import { AdminModule } from "./admin/admin.module";
 import { UsersModule } from "./users/users.module";
 import { AuthModule } from "./auth/auth.module";
 import { MailModule } from './mail/mail.module';
+import { CarsModule } from './cars/cars.module';
+import { CarHistoryModule } from './car-history/car-history.module';
+import { RegionsModule } from './regions/regions.module';
+import { DistrictModule } from './district/district.module';
 
 @Module({
   imports: [
@@ -14,6 +18,10 @@ import { MailModule } from './mail/mail.module';
     UsersModule,
     AuthModule,
     MailModule,
+    CarsModule,
+    CarHistoryModule,
+    RegionsModule,
+    DistrictModule,
   ],
   controllers: [],
   providers: [],
