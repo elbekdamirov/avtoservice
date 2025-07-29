@@ -2,14 +2,20 @@ import {
   BadRequestException,
   Body,
   Controller,
+  HttpCode,
+  HttpStatus,
   Post,
   Req,
   Res,
+  UseGuards,
 } from "@nestjs/common";
 import { AuthService } from "./auth.service";
 import { CreateUserDto } from "src/users/dto/create-user.dto";
 import { SigninUserDto } from "src/users/dto/signin-user.dto";
 import { Request, Response } from "express";
+import { ResponseFields } from "src/common/types";
+import { RefreshTokenGuard } from "src/common/guards";
+import { GetCurrentUser, GetCurrentUserId } from "src/common/decorators";
 
 @Controller("auth")
 export class AuthController {
@@ -30,18 +36,27 @@ export class AuthController {
     @Body("email") email: string,
     @Body("otp") otp: string,
     @Res({ passthrough: true }) res: Response
-  ) {
+  ): Promise<ResponseFields> {
     return this.authService.verifyOtp(email, otp, res);
   }
 
+  @UseGuards(RefreshTokenGuard)
   @Post("refresh")
-  refresh(@Req() req: Request, @Res() res: Response) {
-    const refreshToken = req.cookies.refreshToken;
-    return this.authService.refreshTokens(refreshToken, res);
+  @HttpCode(HttpStatus.OK)
+  refresh(
+    @GetCurrentUserId() userId: number,
+    @GetCurrentUser("refreshToken") refreshToken: string,
+    @Res({ passthrough: true }) res: Response
+  ): Promise<ResponseFields> {
+    return this.authService.refreshTokens(+userId, refreshToken, res);
   }
 
+  @UseGuards(RefreshTokenGuard)
   @Post("signout")
-  async logout(@Req() req: Request, @Res() res: Response) {
-    return this.authService.signout(req, res);
+  async logout(
+    @GetCurrentUserId() userId: number,
+    @Res({ passthrough: true }) res: Response
+  ) {
+    return this.authService.signout(+userId, res);
   }
 }

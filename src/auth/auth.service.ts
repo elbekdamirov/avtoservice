@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
@@ -13,6 +14,7 @@ import { MailService } from "src/mail/mail.service";
 import { generateOtp } from "src/utils/otp.util";
 import { SigninUserDto } from "src/users/dto/signin-user.dto";
 import { Request, request, Response } from "express";
+import { ResponseFields, Tokens } from "src/common/types";
 
 @Injectable()
 export class AuthService {
@@ -78,7 +80,7 @@ export class AuthService {
 
   async signin(dto: SigninUserDto) {
     const { email } = dto;
-    const user = await this.prismaService.users.findFirst({
+    const user = await this.prismaService.users.findUnique({
       where: { email },
     });
     if (!user) throw new NotFoundException("User not found");
@@ -97,7 +99,11 @@ export class AuthService {
     return { message: "OTP sent to email" };
   }
 
-  async verifyOtp(email: string, otp: string, res: Response) {
+  async verifyOtp(
+    email: string,
+    otp: string,
+    res: Response
+  ): Promise<ResponseFields> {
     if (!email) {
       throw new BadRequestException("Email is required");
     }
@@ -133,7 +139,7 @@ export class AuthService {
       maxAge: Number(process.env.USER_COOKIE_TIME),
     });
 
-    return { message: "OTP verified", accessToken };
+    return { message: "OTP verified", accessToken, userId: user.id };
   }
 
   async activateUser(link: string) {
@@ -161,56 +167,51 @@ export class AuthService {
     return { message: "Account successfully activated" };
   }
 
-  async refreshTokens(refreshToken: string, res: Response) {
-    if (!refreshToken) {
-      throw new BadRequestException("Refresh token is required");
-    }
-    let userData: any;
-    try {
-      userData = await this.jwtService.verifyAsync(refreshToken, {
-        secret: process.env.USER_REFRESH_TOKEN_KEY,
-      });
-    } catch (err) {
-      throw new BadRequestException("Invalid refresh token");
-    }
+  async refreshTokens(userId: number, refreshToken: string, res: Response) {
     const user = await this.prismaService.users.findUnique({
-      where: { id: userData.id },
+      where: { id: userId },
     });
 
     if (!user || !user.refreshToken) {
-      throw new BadRequestException("Access denied");
+      throw new ForbiddenException("AccessDenied1");
     }
 
-    const isValid = bcrypt.compare(refreshToken, user.refreshToken);
-    if (!isValid) {
-      throw new BadRequestException("Refresh token mismatch");
-    }
+    const rtMatches = await bcrypt.compare(refreshToken, user.refreshToken);
+    if (!rtMatches) throw new ForbiddenException("AccessDenied2");
 
-    const tokens = await this.generateTokens(user);
+    const tokens: Tokens = await this.generateTokens(user);
     const hashedRefreshToken = await bcrypt.hash(tokens.refreshToken, 7);
-
     await this.prismaService.users.update({
-      where: { id: user.id },
+      where: { id: userId },
       data: { refreshToken: hashedRefreshToken },
     });
 
     res.cookie("refreshToken", tokens.refreshToken, {
+      maxAge: +process.env.USER_COOKIE_TIME!,
       httpOnly: true,
-      maxAge: Number(process.env.USER_COOKIE_TIME),
     });
 
-    res
-      .status(200)
-      .json({ message: "User refreshed", accessToken: tokens.accessToken });
+    return {
+      message: "Tokenlar yangilandi",
+      userId: user.id,
+      accessToken: tokens.accessToken,
+    };
   }
 
-  async signout(req: Request, res: Response) {
-    const refreshToken = req.cookies["refreshToken"];
-    if (!refreshToken) {
-      return res.status(200).send({ message: "Already logged out" });
-    }
-
+  async signout(userId: number, res: Response) {
+    const user = await this.prismaService.users.updateMany({
+      where: {
+        id: userId,
+        refreshToken: {
+          not: null,
+        },
+      },
+      data: {
+        refreshToken: null,
+      },
+    });
+    if (!user) throw new ForbiddenException("Access denied");
     res.clearCookie("refreshToken");
-    return res.status(200).send({ message: "Successfully logged out" });
+    return { message: "User signed out" };
   }
 }
